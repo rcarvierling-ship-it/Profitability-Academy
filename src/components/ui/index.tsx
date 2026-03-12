@@ -4,16 +4,20 @@ interface CardProps {
   children: React.ReactNode;
   title?: string;
   subtitle?: string;
+  icon?: React.ReactNode;
   className?: string;
   style?: React.CSSProperties;
 }
 
-export const Card: React.FC<CardProps & React.HTMLAttributes<HTMLDivElement>> = ({ children, title, subtitle, className = '', style, ...props }) => (
+export const Card: React.FC<CardProps & React.HTMLAttributes<HTMLDivElement>> = ({ children, title, subtitle, icon, className = '', style, ...props }) => (
   <div className={`glass-card ${className}`} style={{ padding: '24px', ...style }} {...props}>
-    {(title || subtitle) && (
-      <div style={{ marginBottom: '20px' }}>
-        {title && <h3 style={{ fontSize: '1.25rem', fontWeight: 600 }}>{title}</h3>}
-        {subtitle && <p style={{ color: 'var(--text-dim)', fontSize: '0.875rem' }}>{subtitle}</p>}
+    {(title || subtitle || icon) && (
+      <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {icon && <div style={{ color: 'var(--primary)', display: 'flex' }}>{icon}</div>}
+        <div>
+          {title && <h3 style={{ fontSize: '1.25rem', fontWeight: 600 }}>{title}</h3>}
+          {subtitle && <p style={{ color: 'var(--text-dim)', fontSize: '0.875rem' }}>{subtitle}</p>}
+        </div>
       </div>
     )}
     {children}

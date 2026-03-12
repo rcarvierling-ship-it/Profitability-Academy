@@ -1,116 +1,237 @@
 import React, { useEffect, useRef } from 'react';
-import { createChart, ColorType, AreaSeries } from 'lightweight-charts';
-import type { IChartApi, ISeriesApi } from 'lightweight-charts';
+import { createChart, ColorType, CandlestickSeries } from 'lightweight-charts';
+import type { IChartApi, ISeriesApi, IPriceLine } from 'lightweight-charts';
 
 interface ChartProps {
   data: any[];
+  slPrice?: number | null;
+  tpPrice?: number | null;
+  entryPrice?: number | null;
+  onLevelChange?: (type: 'SL' | 'TP', newPrice: number) => void;
   colors?: {
     backgroundColor?: string;
-    lineColor?: string;
     textColor?: string;
-    areaTopColor?: string;
-    areaBottomColor?: string;
+    upColor?: string;
+    downColor?: string;
   };
 }
 
 export const TradingChart: React.FC<ChartProps> = ({
   data,
+  slPrice,
+  tpPrice,
+  entryPrice,
+  onLevelChange,
   colors: {
-    backgroundColor = 'transparent',
-    lineColor = '#3b82f6',
+    backgroundColor = '#0a0a0c',
     textColor = '#9ca3af',
-    areaTopColor = 'rgba(59, 130, 246, 0.4)',
-    areaBottomColor = 'rgba(59, 130, 246, 0.0)',
+    upColor = '#10b981',
+    downColor = '#ef4444',
   } = {},
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const seriesRef = useRef<ISeriesApi<"Area"> | null>(null);
+  const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  
+  const slLineRef = useRef<IPriceLine | null>(null);
+  const tpLineRef = useRef<IPriceLine | null>(null);
+  const entryLineRef = useRef<IPriceLine | null>(null);
+
+  const isDraggingRef = useRef<'SL' | 'TP' | null>(null);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
-    // Ensure container has dimensions
-    const width = chartContainerRef.current.clientWidth || 500;
-    const height = 400; // Fixed height for robustness
-
-    try {
-      const chart = createChart(chartContainerRef.current, {
-        layout: {
-          background: { type: ColorType.Solid, color: backgroundColor === 'transparent' ? '#0a0a0c' : backgroundColor },
-          textColor,
-          fontFamily: 'Outfit',
+    const chart = createChart(chartContainerRef.current, {
+      layout: {
+        background: { type: ColorType.Solid, color: backgroundColor },
+        textColor,
+        fontFamily: 'Outfit',
+      },
+      grid: {
+        vertLines: { color: 'rgba(255, 255, 255, 0.03)' },
+        horzLines: { color: 'rgba(255, 255, 255, 0.03)' },
+      },
+      width: chartContainerRef.current.clientWidth,
+      height: 480,
+      timeScale: {
+        borderVisible: false,
+        timeVisible: true,
+        secondsVisible: true,
+      },
+      rightPriceScale: {
+        borderVisible: false,
+        scaleMargins: {
+          top: 0.1,
+          bottom: 0.1,
         },
-        grid: {
-          vertLines: { color: 'rgba(255, 255, 255, 0.05)' },
-          horzLines: { color: 'rgba(255, 255, 255, 0.05)' },
-        },
-        width,
-        height,
-        timeScale: {
-          borderVisible: false,
-          timeVisible: true,
-          secondsVisible: true,
-        },
-        rightPriceScale: {
-          borderVisible: false,
-        },
-      });
+      },
+      crosshair: {
+        mode: 1, // Magnet mode
+        vertLine: { color: 'rgba(255, 255, 255, 0.2)', labelBackgroundColor: '#1e293b' },
+        horzLine: { color: 'rgba(255, 255, 255, 0.2)', labelBackgroundColor: '#1e293b' },
+      },
+    });
 
-      const series = chart.addSeries(AreaSeries, {
-        lineColor,
-        topColor: areaTopColor,
-        bottomColor: areaBottomColor,
-        lineWidth: 2,
-      });
+    const series = chart.addSeries(CandlestickSeries, {
+      upColor,
+      downColor,
+      borderVisible: false,
+      wickUpColor: upColor,
+      wickDownColor: downColor,
+    });
 
-      chartRef.current = chart;
-      seriesRef.current = series;
+    chartRef.current = chart;
+    seriesRef.current = series;
 
-      if (data && data.length > 0) {
-        series.setData(data);
-      }
-
-      const handleResize = () => {
-        if (chartContainerRef.current && chartRef.current) {
-          chartRef.current.applyOptions({ width: chartContainerRef.current.clientWidth });
-        }
-      };
-
-      window.addEventListener('resize', handleResize);
-
-      return () => {
-        window.removeEventListener('resize', handleResize);
-        chart.remove();
-        chartRef.current = null;
-        seriesRef.current = null;
-      };
-    } catch (err) {
-      console.error("Failed to initialize lightweight-chart:", err);
+    if (data && data.length > 0) {
+      series.setData(data);
     }
-  }, [backgroundColor, lineColor, textColor, areaTopColor, areaBottomColor]);
 
-  // Dynamic Update Effect
-  useEffect(() => {
-    if (seriesRef.current && data && data.length > 0) {
-      try {
-        seriesRef.current.setData(data);
-      } catch (err) {
-        console.warn("Chart data update failed (likely time ordering):", err);
+    // Interaction Logic for Draggable Lines
+    const container = chartContainerRef.current;
+    
+    const handleMouseDown = (e: MouseEvent) => {
+      if (!onLevelChange || !seriesRef.current || !chartRef.current) return;
+      
+      const rect = container.getBoundingClientRect();
+      const mouseY = e.clientY - rect.top;
+      
+      // Hit test using coordinates for better precision
+      const slY = slPrice ? seriesRef.current.priceToCoordinate(slPrice) : null;
+      const tpY = tpPrice ? seriesRef.current.priceToCoordinate(tpPrice) : null;
+      
+      const tolerance = 15; // 15 pixels hit area
+      
+      if (slY !== null && Math.abs(mouseY - slY) < tolerance) {
+        isDraggingRef.current = 'SL';
+        container.style.cursor = 'ns-resize';
+      } else if (tpY !== null && Math.abs(mouseY - tpY) < tolerance) {
+        isDraggingRef.current = 'TP';
+        container.style.cursor = 'ns-resize';
       }
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingRef.current || !seriesRef.current || !onLevelChange) return;
+      
+      const rect = container.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      const newPrice = seriesRef.current.coordinateToPrice(y);
+      
+      if (newPrice) {
+        onLevelChange(isDraggingRef.current, newPrice);
+      }
+    };
+
+    const handleMouseUp = () => {
+      isDraggingRef.current = null;
+      container.style.cursor = 'crosshair';
+    };
+
+    container.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    const handleResize = () => {
+      if (chartContainerRef.current && chartRef.current) {
+        chartRef.current.applyOptions({ width: chartContainerRef.current.clientWidth });
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      container.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('resize', handleResize);
+      chart.remove();
+    };
+  }, [backgroundColor, textColor, upColor, downColor]);
+
+  // Update Data
+  useEffect(() => {
+    if (seriesRef.current && data) {
+      seriesRef.current.setData(data);
     }
   }, [data]);
+
+  // Update Price Lines (SL, TP, Entry)
+  useEffect(() => {
+    if (!seriesRef.current) return;
+
+    // Entry Line
+    if (entryPrice) {
+      if (!entryLineRef.current) {
+        entryLineRef.current = seriesRef.current.createPriceLine({
+          price: entryPrice,
+          color: '#ffffff',
+          lineWidth: 2,
+          lineStyle: 2, // Large Dashed
+          axisLabelVisible: true,
+          title: 'ENTRY',
+        });
+      } else {
+        entryLineRef.current.applyOptions({ price: entryPrice });
+      }
+    } else if (entryLineRef.current) {
+      seriesRef.current.removePriceLine(entryLineRef.current);
+      entryLineRef.current = null;
+    }
+
+    // Stop Loss Line
+    if (slPrice) {
+      if (!slLineRef.current) {
+        slLineRef.current = seriesRef.current.createPriceLine({
+          price: slPrice,
+          color: '#ef4444',
+          lineWidth: 2,
+          lineStyle: 0, // Solid
+          axisLabelVisible: true,
+          title: 'SL (DRAG)',
+        });
+      } else {
+        slLineRef.current.applyOptions({ price: slPrice });
+      }
+    } else if (slLineRef.current) {
+      seriesRef.current.removePriceLine(slLineRef.current);
+      slLineRef.current = null;
+    }
+
+    // Take Profit Line
+    if (tpPrice) {
+      if (!tpLineRef.current) {
+        tpLineRef.current = seriesRef.current.createPriceLine({
+          price: tpPrice,
+          color: '#10b981',
+          lineWidth: 2,
+          lineStyle: 0, // Solid
+          axisLabelVisible: true,
+          title: 'TP (DRAG)',
+        });
+      } else {
+        tpLineRef.current.applyOptions({ price: tpPrice });
+      }
+    } else if (tpLineRef.current) {
+      seriesRef.current.removePriceLine(tpLineRef.current);
+      tpLineRef.current = null;
+    }
+
+  }, [entryPrice, slPrice, tpPrice]);
 
   return (
     <div 
       ref={chartContainerRef} 
       style={{ 
         width: '100%', 
-        height: '400px', 
+        height: '480px', 
         position: 'relative',
-        background: '#0a0a0c',
-        borderRadius: '8px',
-        overflow: 'hidden'
+        background: backgroundColor,
+        borderRadius: '12px',
+        overflow: 'hidden',
+        cursor: 'crosshair',
+        border: '1px solid var(--border-subtle)'
       }} 
     />
   );
