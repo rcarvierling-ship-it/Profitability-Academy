@@ -42,31 +42,31 @@ const App: React.FC = () => {
             <AppShell>
               <Routes>
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/academy" element={<Academy />} />
-                <Route path="/lesson/:id" element={<PagePlaceholder title="Lesson" />} />
-                <Route path="/strategies" element={<Strategies />} />
-                <Route path="/strategy/:id" element={<PagePlaceholder title="Strategy Details" />} />
-                <Route path="/replay" element={<ExecutionSimulator />} />
-                <Route path="/journal" element={<Journal />} />
-                <Route path="/trade/:id" element={<PagePlaceholder title="Trade Detail" />} />
-                <Route path="/journal/replay/:id" element={<PagePlaceholder title="Journal Replay" />} />
-                <Route path="/journal/flashcards" element={<PagePlaceholder title="Journal Flashcards" />} />
-                <Route path="/backtesting" element={<PagePlaceholder title="Backtesting" />} />
-                <Route path="/risk" element={<PagePlaceholder title="Risk Management" />} />
-                <Route path="/psychology" element={<PagePlaceholder title="Psychology" />} />
-                <Route path="/training" element={<PagePlaceholder title="Training" />} />
-                <Route path="/setup-detector" element={<SetupDetector />} />
-                <Route path="/pro" element={<PagePlaceholder title="Pro Mode" />} />
-                <Route path="/no-trade" element={<PagePlaceholder title="No-Trade Mode" />} />
-                <Route path="/compounding" element={<PagePlaceholder title="Compounding" />} />
-                <Route path="/timeline" element={<PagePlaceholder title="Timeline" />} />
-                <Route path="/daily-engine" element={<PagePlaceholder title="Daily Engine" />} />
-                <Route path="/discipline-engine" element={<PagePlaceholder title="Discipline Engine" />} />
-                <Route path="/weekly-review" element={<PagePlaceholder title="Weekly Review" />} />
-                <Route path="/monthly-review" element={<PagePlaceholder title="Monthly Review" />} />
-                <Route path="/analytics" element={<PagePlaceholder title="Analytics" />} />
-                <Route path="/settings" element={<PagePlaceholder title="Settings" />} />
+                <Route path="dashboard" element={<Dashboard />} />
+                <Route path="academy" element={<Academy />} />
+                <Route path="lesson/:id" element={<PagePlaceholder title="Lesson" />} />
+                <Route path="strategies" element={<Strategies />} />
+                <Route path="strategy/:id" element={<PagePlaceholder title="Strategy Details" />} />
+                <Route path="replay" element={<ExecutionSimulator />} />
+                <Route path="journal" element={<Journal />} />
+                <Route path="trade/:id" element={<PagePlaceholder title="Trade Detail" />} />
+                <Route path="journal/replay/:id" element={<PagePlaceholder title="Journal Replay" />} />
+                <Route path="journal/flashcards" element={<PagePlaceholder title="Journal Flashcards" />} />
+                <Route path="backtesting" element={<PagePlaceholder title="Backtesting" />} />
+                <Route path="risk" element={<PagePlaceholder title="Risk Management" />} />
+                <Route path="psychology" element={<PagePlaceholder title="Psychology" />} />
+                <Route path="training" element={<PagePlaceholder title="Training" />} />
+                <Route path="setup-detector" element={<SetupDetector />} />
+                <Route path="pro" element={<PagePlaceholder title="Pro Mode" />} />
+                <Route path="no-trade" element={<PagePlaceholder title="No-Trade Mode" />} />
+                <Route path="compounding" element={<PagePlaceholder title="Compounding" />} />
+                <Route path="timeline" element={<PagePlaceholder title="Timeline" />} />
+                <Route path="daily-engine" element={<PagePlaceholder title="Daily Engine" />} />
+                <Route path="discipline-engine" element={<PagePlaceholder title="Discipline Engine" />} />
+                <Route path="weekly-review" element={<PagePlaceholder title="Weekly Review" />} />
+                <Route path="monthly-review" element={<PagePlaceholder title="Monthly Review" />} />
+                <Route path="analytics" element={<PagePlaceholder title="Analytics" />} />
+                <Route path="settings" element={<PagePlaceholder title="Settings" />} />
                 
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
