@@ -35,13 +35,12 @@ const ExecutionSimulator: React.FC = () => {
   const [currentPnl, setCurrentPnl] = useState(0);
 
   // Price Engine State
-  const [simTime, setSimTime] = useState(0);
   const [regime, setRegime] = useState<'Trend' | 'Chop'>('Chop');
   const [trendDirection, setTrendDirection] = useState<1 | -1>(1);
   
   const [chartData, setChartData] = useState(() => 
     Array.from({ length: 100 }, (_, i) => ({
-      time: new Date(Date.now() - (100 - i) * 60000).toISOString().split('.')[0] + 'Z',
+      time: Math.floor((Date.now() - (100 - i) * 60000) / 1000),
       value: 18200 + Math.random() * 50
     }))
   );
@@ -53,7 +52,6 @@ const ExecutionSimulator: React.FC = () => {
     let interval: any;
     if (isPlaying) {
       interval = setInterval(() => {
-        setSimTime(prev => prev + 1);
         
         // Dynamic Regime Logic
         if (Math.random() < 0.05) {
@@ -67,7 +65,7 @@ const ExecutionSimulator: React.FC = () => {
         const newValue = lastPrice + change;
 
         const newPoint = {
-          time: new Date(Date.now() + simTime * 1000).toISOString().split('.')[0] + 'Z',
+          time: Math.floor(Date.now() / 1000),
           value: newValue
         };
 

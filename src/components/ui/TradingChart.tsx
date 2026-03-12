@@ -25,7 +25,9 @@ export const TradingChart: React.FC<ChartProps> = ({
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
+  const seriesRef = useRef<any>(null);
 
+  // Initialize Chart
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
@@ -43,22 +45,23 @@ export const TradingChart: React.FC<ChartProps> = ({
       height: 300,
       timeScale: {
         borderVisible: false,
+        timeVisible: true,
+        secondsVisible: true,
       },
       rightPriceScale: {
         borderVisible: false,
       },
     });
 
-    // Use addSeries with "Area" type to be explicit and avoid IChartApi type issues
-    const newSeries = (chart as any).addAreaSeries({
+    const series = (chart as any).addAreaSeries({
       lineColor,
       topColor: areaTopColor,
       bottomColor: areaBottomColor,
       lineWidth: 2,
     });
 
-    newSeries.setData(data);
     chartRef.current = chart;
+    seriesRef.current = series;
 
     const handleResize = () => {
       if (chartContainerRef.current) {
@@ -72,7 +75,14 @@ export const TradingChart: React.FC<ChartProps> = ({
       window.removeEventListener('resize', handleResize);
       chart.remove();
     };
-  }, [data, backgroundColor, lineColor, textColor, areaTopColor, areaBottomColor]);
+  }, [backgroundColor, lineColor, textColor, areaTopColor, areaBottomColor]);
+
+  // Update Data
+  useEffect(() => {
+    if (seriesRef.current && data) {
+      seriesRef.current.setData(data);
+    }
+  }, [data]);
 
   return <div ref={chartContainerRef} style={{ width: '100%', position: 'relative' }} />;
 };
