@@ -9,6 +9,7 @@ import Strategies from './pages/Strategies';
 import SetupDetector from './pages/SetupDetector';
 import Journal from './pages/Journal/Journal';
 import ExecutionSimulator from './pages/Simulator/ExecutionSimulator';
+import LessonView from './pages/Academy/LessonView';
 import Landing from './pages/Landing';
 import { useAuth } from './context/AuthContext';
 
@@ -44,7 +45,7 @@ const App: React.FC = () => {
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="academy" element={<Academy />} />
-                <Route path="lesson/:id" element={<PagePlaceholder title="Lesson" />} />
+                <Route path="lesson/:id" element={<LessonView />} />
                 <Route path="strategies" element={<Strategies />} />
                 <Route path="strategy/:id" element={<PagePlaceholder title="Strategy Details" />} />
                 <Route path="replay" element={<ExecutionSimulator />} />
