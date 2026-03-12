@@ -41,6 +41,11 @@ const TICKERS = [
 ];
 
 const TIMEFRAMES = ['1m', '5m', '15m'];
+const TF_MAP: Record<string, number> = {
+  '1m': 60,
+  '5m': 300,
+  '15m': 900
+};
 
 const ExecutionSimulator: React.FC = () => {
   // Simulator State
@@ -82,7 +87,7 @@ const ExecutionSimulator: React.FC = () => {
       const close = low + Math.random() * (high - low);
       
       initialData.push({
-        time: now - (150 - i) * 60,
+        time: now - (150 - i) * TF_MAP[timeframe],
         open,
         high,
         low,
@@ -134,10 +139,8 @@ const ExecutionSimulator: React.FC = () => {
         const low = open - Math.random() * range + Math.min(0, impulse);
         const close = low + Math.random() * (high - low) + correction;
 
-        let newTime = Math.floor(Date.now() / 1000);
-        if (newTime <= lastTick.time) {
-          newTime = lastTick.time + 1;
-        }
+        // Ensure time increments by the selected timeframe
+        const newTime = lastTick.time + TF_MAP[timeframe];
 
         const newPoint: SimulatedBar = {
           time: newTime,
@@ -561,7 +564,7 @@ const ExecutionSimulator: React.FC = () => {
         .hud-exit-btn { background: rgba(255,0,0,0.1); border: 1px solid rgba(255,0,0,0.2); border-radius: 12px; padding: 10px 15px; color: white; cursor: pointer; display: flex; align-items: center; gap: 8px; pointer-events: auto; transition: 0.3s; }
         .hud-exit-btn:hover { background: rgba(255,0,0,0.3); border-color: rgba(255,0,0,0.5); }
         
-        .immersive-hud-bc { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); z-index: 200; pointer-events: none; }
+        .immersive-hud-bc { position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%); z-index: 200; pointer-events: none; }
         .hud-exec-card { background: rgba(10, 10, 12, 0.9); backdrop-filter: blur(30px); border: 1px solid rgba(255,255,255,0.15); border-radius: 20px; padding: 15px 30px; width: 440px; pointer-events: auto; box-shadow: 0 20px 50px rgba(0,0,0,0.7); display: flex; flex-direction: column; gap: 15px; }
         .hud-exec-card.active { border-color: var(--primary); box-shadow: 0 0 30px rgba(59, 130, 246, 0.2); flex-direction: row; justify-content: space-between; align-items: center; }
         .hud-order-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
