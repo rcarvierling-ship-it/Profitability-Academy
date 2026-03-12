@@ -40,10 +40,13 @@ const ExecutionSimulator: React.FC = () => {
   
   const [chartData, setChartData] = useState(() => 
     Array.from({ length: 100 }, (_, i) => ({
-      time: Math.floor((Date.now() - (100 - i) * 60000) / 1000),
+      time: Math.floor((Date.now() - (105 - i) * 60000) / 1000),
       value: 18200 + Math.random() * 50
     }))
   );
+
+  const chartDataRef = React.useRef(chartData);
+  chartDataRef.current = chartData;
 
   const lastPrice = useMemo(() => chartData[chartData.length - 1].value, [chartData]);
 
@@ -52,6 +55,8 @@ const ExecutionSimulator: React.FC = () => {
     let interval: any;
     if (isPlaying) {
       interval = setInterval(() => {
+        const currentData = chartDataRef.current;
+        const lastTick = currentData[currentData.length - 1];
         
         // Dynamic Regime Logic
         if (Math.random() < 0.05) {
@@ -62,10 +67,16 @@ const ExecutionSimulator: React.FC = () => {
         const volatility = regime === 'Trend' ? 12 : 6;
         const bias = regime === 'Trend' ? trendDirection * 2 : 0;
         const change = (Math.random() - 0.5) * volatility + bias;
-        const newValue = lastPrice + change;
+        const newValue = lastTick.value + change;
+
+        // Ensure time is strictly increasing
+        let newTime = Math.floor(Date.now() / 1000);
+        if (newTime <= (lastTick.time as number)) {
+          newTime = (lastTick.time as number) + 1;
+        }
 
         const newPoint = {
-          time: Math.floor(Date.now() / 1000),
+          time: newTime,
           value: newValue
         };
 
@@ -74,11 +85,10 @@ const ExecutionSimulator: React.FC = () => {
         // Position PnL & Auto-Exits
         if (position && entryPrice) {
           const diff = position === 'Long' ? newValue - entryPrice : entryPrice - newValue;
-          const pointValue = 20; // NQ point value approx
+          const pointValue = 20;
           const pnlVal = diff * contracts * pointValue;
           setCurrentPnl(pnlVal);
 
-          // SL/TP Check
           if (newValue <= entryPrice - sl && position === 'Long' || 
               newValue >= entryPrice + sl && position === 'Short') {
             closePosition(newValue);
@@ -90,7 +100,7 @@ const ExecutionSimulator: React.FC = () => {
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isPlaying, lastPrice, position, entryPrice, sl, tp, contracts, regime, trendDirection]);
+  }, [isPlaying, position, entryPrice, sl, tp, contracts, regime, trendDirection]);
 
   const handleTrade = (type: 'Long' | 'Short') => {
     if (position) return;

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { createChart, ColorType } from 'lightweight-charts';
-import type { IChartApi } from 'lightweight-charts';
+import { createChart, ColorType, AreaSeries } from 'lightweight-charts';
+import type { IChartApi, ISeriesApi } from 'lightweight-charts';
 
 interface ChartProps {
   data: any[];
@@ -25,64 +25,93 @@ export const TradingChart: React.FC<ChartProps> = ({
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const seriesRef = useRef<any>(null);
+  const seriesRef = useRef<ISeriesApi<"Area"> | null>(null);
 
-  // Initialize Chart
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
-    const chart = createChart(chartContainerRef.current, {
-      layout: {
-        background: { type: ColorType.Solid, color: backgroundColor },
-        textColor,
-        fontFamily: 'Outfit',
-      },
-      grid: {
-        vertLines: { color: 'rgba(255, 255, 255, 0.05)' },
-        horzLines: { color: 'rgba(255, 255, 255, 0.05)' },
-      },
-      width: chartContainerRef.current.clientWidth,
-      height: 300,
-      timeScale: {
-        borderVisible: false,
-        timeVisible: true,
-        secondsVisible: true,
-      },
-      rightPriceScale: {
-        borderVisible: false,
-      },
-    });
+    // Ensure container has dimensions
+    const width = chartContainerRef.current.clientWidth || 500;
+    const height = 400; // Fixed height for robustness
 
-    const series = (chart as any).addAreaSeries({
-      lineColor,
-      topColor: areaTopColor,
-      bottomColor: areaBottomColor,
-      lineWidth: 2,
-    });
+    try {
+      const chart = createChart(chartContainerRef.current, {
+        layout: {
+          background: { type: ColorType.Solid, color: backgroundColor === 'transparent' ? '#0a0a0c' : backgroundColor },
+          textColor,
+          fontFamily: 'Outfit',
+        },
+        grid: {
+          vertLines: { color: 'rgba(255, 255, 255, 0.05)' },
+          horzLines: { color: 'rgba(255, 255, 255, 0.05)' },
+        },
+        width,
+        height,
+        timeScale: {
+          borderVisible: false,
+          timeVisible: true,
+          secondsVisible: true,
+        },
+        rightPriceScale: {
+          borderVisible: false,
+        },
+      });
 
-    chartRef.current = chart;
-    seriesRef.current = series;
+      const series = chart.addSeries(AreaSeries, {
+        lineColor,
+        topColor: areaTopColor,
+        bottomColor: areaBottomColor,
+        lineWidth: 2,
+      });
 
-    const handleResize = () => {
-      if (chartContainerRef.current) {
-        chart.applyOptions({ width: chartContainerRef.current.clientWidth });
+      chartRef.current = chart;
+      seriesRef.current = series;
+
+      if (data && data.length > 0) {
+        series.setData(data);
       }
-    };
 
-    window.addEventListener('resize', handleResize);
+      const handleResize = () => {
+        if (chartContainerRef.current && chartRef.current) {
+          chartRef.current.applyOptions({ width: chartContainerRef.current.clientWidth });
+        }
+      };
 
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      chart.remove();
-    };
+      window.addEventListener('resize', handleResize);
+
+      return () => {
+        window.removeEventListener('resize', handleResize);
+        chart.remove();
+        chartRef.current = null;
+        seriesRef.current = null;
+      };
+    } catch (err) {
+      console.error("Failed to initialize lightweight-chart:", err);
+    }
   }, [backgroundColor, lineColor, textColor, areaTopColor, areaBottomColor]);
 
-  // Update Data
+  // Dynamic Update Effect
   useEffect(() => {
-    if (seriesRef.current && data) {
-      seriesRef.current.setData(data);
+    if (seriesRef.current && data && data.length > 0) {
+      try {
+        seriesRef.current.setData(data);
+      } catch (err) {
+        console.warn("Chart data update failed (likely time ordering):", err);
+      }
     }
   }, [data]);
 
-  return <div ref={chartContainerRef} style={{ width: '100%', position: 'relative' }} />;
+  return (
+    <div 
+      ref={chartContainerRef} 
+      style={{ 
+        width: '100%', 
+        height: '400px', 
+        position: 'relative',
+        background: '#0a0a0c',
+        borderRadius: '8px',
+        overflow: 'hidden'
+      }} 
+    />
+  );
 };
