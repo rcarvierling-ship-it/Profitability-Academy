@@ -430,7 +430,7 @@ const ExecutionSimulator: React.FC = () => {
         </>
       ) : (
         /* Immersive Deep Flow Layout */
-        <div style={{ position: 'relative', width: '100%', height: '100vh', overflow: 'hidden' }}>
+        <div style={{ position: 'fixed', inset: 0, width: '100vw', height: '100vh', overflow: 'hidden', background: '#0a0a0c', zIndex: 1000 }}>
            <TradingChart 
               data={chartData} 
               slPrice={slPrice}

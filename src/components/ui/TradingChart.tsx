@@ -42,13 +42,19 @@ export const TradingChart: React.FC<ChartProps> = ({
   const isDraggingRef = useRef<'SL' | 'TP' | null>(null);
 
   useEffect(() => {
-    if (!chartContainerRef.current) return;
+    const container = chartContainerRef.current;
+    if (!container) return;
 
-    const width = chartContainerRef.current.clientWidth || 500;
-    const h = typeof height === 'number' ? height : chartContainerRef.current.clientHeight || 480;
+    const getDimensions = () => {
+      const width = container.clientWidth || window.innerWidth;
+      const h = height === '100vh' ? window.innerHeight : (typeof height === 'number' ? height : container.clientHeight || 480);
+      return { width, height: h };
+    };
+
+    const dims = getDimensions();
 
     try {
-      const chart = createChart(chartContainerRef.current, {
+      const chart = createChart(container, {
         layout: {
           background: { type: ColorType.Solid, color: backgroundColor },
           textColor,
@@ -58,8 +64,8 @@ export const TradingChart: React.FC<ChartProps> = ({
           vertLines: { color: 'rgba(255, 255, 255, 0.03)' },
           horzLines: { color: 'rgba(255, 255, 255, 0.03)' },
         },
-        width,
-        height: h,
+        width: dims.width,
+        height: dims.height,
         timeScale: {
           borderVisible: false,
           timeVisible: true,
@@ -73,7 +79,7 @@ export const TradingChart: React.FC<ChartProps> = ({
           },
         },
         crosshair: {
-          mode: 1, // Magnet mode
+          mode: 1,
           vertLine: { color: 'rgba(255, 255, 255, 0.2)', labelBackgroundColor: '#1e293b' },
           horzLine: { color: 'rgba(255, 255, 255, 0.2)', labelBackgroundColor: '#1e293b' },
         },
@@ -92,22 +98,17 @@ export const TradingChart: React.FC<ChartProps> = ({
 
       if (data && data.length > 0) {
         series.setData(data);
+        chart.timeScale().fitContent();
       }
 
-      // Interaction Logic for Draggable Lines
-      const container = chartContainerRef.current;
-      
+      // Interaction Logic
       const handleMouseDown = (e: MouseEvent) => {
         if (!onLevelChange || !seriesRef.current || !chartRef.current) return;
-        
         const rect = container.getBoundingClientRect();
         const mouseY = e.clientY - rect.top;
-        
-        // Hit test using coordinates for better precision
         const slY = slPrice ? seriesRef.current.priceToCoordinate(slPrice) : null;
         const tpY = tpPrice ? seriesRef.current.priceToCoordinate(tpPrice) : null;
-        
-        const tolerance = 15; // 15 pixels hit area
+        const tolerance = 20; 
         
         if (slY !== null && Math.abs(mouseY - slY) < tolerance) {
           isDraggingRef.current = 'SL';
@@ -120,14 +121,10 @@ export const TradingChart: React.FC<ChartProps> = ({
 
       const handleMouseMove = (e: MouseEvent) => {
         if (!isDraggingRef.current || !seriesRef.current || !onLevelChange) return;
-        
         const rect = container.getBoundingClientRect();
         const y = e.clientY - rect.top;
         const newPrice = seriesRef.current.coordinateToPrice(y);
-        
-        if (newPrice) {
-          onLevelChange(isDraggingRef.current, newPrice);
-        }
+        if (newPrice) onLevelChange(isDraggingRef.current, newPrice);
       };
 
       const handleMouseUp = () => {
@@ -140,8 +137,9 @@ export const TradingChart: React.FC<ChartProps> = ({
       window.addEventListener('mouseup', handleMouseUp);
 
       const handleResize = () => {
-        if (chartContainerRef.current && chartRef.current) {
-          chartRef.current.applyOptions({ width: chartContainerRef.current.clientWidth });
+        if (container && chartRef.current) {
+          const newDims = getDimensions();
+          chartRef.current.applyOptions({ width: newDims.width, height: newDims.height });
         }
       };
 
@@ -157,7 +155,7 @@ export const TradingChart: React.FC<ChartProps> = ({
         seriesRef.current = null;
       };
     } catch (err) {
-      console.error("Chart init failed:", err);
+      console.error("Chart initialization error:", err);
     }
   }, [backgroundColor, textColor, upColor, downColor, height]);
 
@@ -168,67 +166,49 @@ export const TradingChart: React.FC<ChartProps> = ({
     }
   }, [data]);
 
-  // Update Price Lines (SL, TP, Entry)
+  // Update Price Lines
   useEffect(() => {
-    if (!seriesRef.current) return;
+    const series = seriesRef.current;
+    if (!series) return;
 
-    // Entry Line
     if (entryPrice) {
       if (!entryLineRef.current) {
-        entryLineRef.current = seriesRef.current.createPriceLine({
-          price: entryPrice,
-          color: '#ffffff',
-          lineWidth: 2,
-          lineStyle: 2, // Large Dashed
-          axisLabelVisible: true,
-          title: 'ENTRY',
+        entryLineRef.current = series.createPriceLine({
+          price: entryPrice, color: '#ffffff', lineWidth: 2, lineStyle: 2, axisLabelVisible: true, title: 'ENTRY'
         });
       } else {
         entryLineRef.current.applyOptions({ price: entryPrice });
       }
     } else if (entryLineRef.current) {
-      seriesRef.current.removePriceLine(entryLineRef.current);
+      series.removePriceLine(entryLineRef.current);
       entryLineRef.current = null;
     }
 
-    // Stop Loss Line
     if (slPrice) {
       if (!slLineRef.current) {
-        slLineRef.current = seriesRef.current.createPriceLine({
-          price: slPrice,
-          color: '#ef4444',
-          lineWidth: 2,
-          lineStyle: 0, // Solid
-          axisLabelVisible: true,
-          title: 'SL (DRAG)',
+        slLineRef.current = series.createPriceLine({
+          price: slPrice, color: '#ef4444', lineWidth: 2, lineStyle: 0, axisLabelVisible: true, title: 'SL (DRAG)'
         });
       } else {
         slLineRef.current.applyOptions({ price: slPrice });
       }
     } else if (slLineRef.current) {
-      seriesRef.current.removePriceLine(slLineRef.current);
+      series.removePriceLine(slLineRef.current);
       slLineRef.current = null;
     }
 
-    // Take Profit Line
     if (tpPrice) {
       if (!tpLineRef.current) {
-        tpLineRef.current = seriesRef.current.createPriceLine({
-          price: tpPrice,
-          color: '#10b981',
-          lineWidth: 2,
-          lineStyle: 0, // Solid
-          axisLabelVisible: true,
-          title: 'TP (DRAG)',
+        tpLineRef.current = series.createPriceLine({
+          price: tpPrice, color: '#10b981', lineWidth: 2, lineStyle: 0, axisLabelVisible: true, title: 'TP (DRAG)'
         });
       } else {
         tpLineRef.current.applyOptions({ price: tpPrice });
       }
     } else if (tpLineRef.current) {
-      seriesRef.current.removePriceLine(tpLineRef.current);
+      series.removePriceLine(tpLineRef.current);
       tpLineRef.current = null;
     }
-
   }, [entryPrice, slPrice, tpPrice]);
 
   return (
@@ -239,10 +219,11 @@ export const TradingChart: React.FC<ChartProps> = ({
         height: height === '100%' || height === '100vh' ? height : `${height}px`, 
         position: 'relative',
         background: backgroundColor,
-        borderRadius: isDraggingRef.current ? '0' : '12px',
+        borderRadius: height === '100vh' ? '0' : '12px',
         overflow: 'hidden',
         cursor: 'crosshair',
-        border: height === '100vh' ? 'none' : '1px solid var(--border-subtle)'
+        border: height === '100vh' ? 'none' : '1px solid var(--border-subtle)',
+        transition: 'border-radius 0.3s ease'
       }} 
     />
   );
