@@ -7,6 +7,7 @@ interface ChartProps {
   slPrice?: number | null;
   tpPrice?: number | null;
   entryPrice?: number | null;
+  height?: string | number;
   onLevelChange?: (type: 'SL' | 'TP', newPrice: number) => void;
   colors?: {
     backgroundColor?: string;
@@ -21,6 +22,7 @@ export const TradingChart: React.FC<ChartProps> = ({
   slPrice,
   tpPrice,
   entryPrice,
+  height = 480,
   onLevelChange,
   colors: {
     backgroundColor = '#0a0a0c',
@@ -42,113 +44,122 @@ export const TradingChart: React.FC<ChartProps> = ({
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
-    const chart = createChart(chartContainerRef.current, {
-      layout: {
-        background: { type: ColorType.Solid, color: backgroundColor },
-        textColor,
-        fontFamily: 'Outfit',
-      },
-      grid: {
-        vertLines: { color: 'rgba(255, 255, 255, 0.03)' },
-        horzLines: { color: 'rgba(255, 255, 255, 0.03)' },
-      },
-      width: chartContainerRef.current.clientWidth,
-      height: 480,
-      timeScale: {
-        borderVisible: false,
-        timeVisible: true,
-        secondsVisible: true,
-      },
-      rightPriceScale: {
-        borderVisible: false,
-        scaleMargins: {
-          top: 0.1,
-          bottom: 0.1,
+    const width = chartContainerRef.current.clientWidth || 500;
+    const h = typeof height === 'number' ? height : chartContainerRef.current.clientHeight || 480;
+
+    try {
+      const chart = createChart(chartContainerRef.current, {
+        layout: {
+          background: { type: ColorType.Solid, color: backgroundColor },
+          textColor,
+          fontFamily: 'Outfit',
         },
-      },
-      crosshair: {
-        mode: 1, // Magnet mode
-        vertLine: { color: 'rgba(255, 255, 255, 0.2)', labelBackgroundColor: '#1e293b' },
-        horzLine: { color: 'rgba(255, 255, 255, 0.2)', labelBackgroundColor: '#1e293b' },
-      },
-    });
+        grid: {
+          vertLines: { color: 'rgba(255, 255, 255, 0.03)' },
+          horzLines: { color: 'rgba(255, 255, 255, 0.03)' },
+        },
+        width,
+        height: h,
+        timeScale: {
+          borderVisible: false,
+          timeVisible: true,
+          secondsVisible: true,
+        },
+        rightPriceScale: {
+          borderVisible: false,
+          scaleMargins: {
+            top: 0.1,
+            bottom: 0.1,
+          },
+        },
+        crosshair: {
+          mode: 1, // Magnet mode
+          vertLine: { color: 'rgba(255, 255, 255, 0.2)', labelBackgroundColor: '#1e293b' },
+          horzLine: { color: 'rgba(255, 255, 255, 0.2)', labelBackgroundColor: '#1e293b' },
+        },
+      });
 
-    const series = chart.addSeries(CandlestickSeries, {
-      upColor,
-      downColor,
-      borderVisible: false,
-      wickUpColor: upColor,
-      wickDownColor: downColor,
-    });
+      const series = chart.addSeries(CandlestickSeries, {
+        upColor,
+        downColor,
+        borderVisible: false,
+        wickUpColor: upColor,
+        wickDownColor: downColor,
+      });
 
-    chartRef.current = chart;
-    seriesRef.current = series;
+      chartRef.current = chart;
+      seriesRef.current = series;
 
-    if (data && data.length > 0) {
-      series.setData(data);
+      if (data && data.length > 0) {
+        series.setData(data);
+      }
+
+      // Interaction Logic for Draggable Lines
+      const container = chartContainerRef.current;
+      
+      const handleMouseDown = (e: MouseEvent) => {
+        if (!onLevelChange || !seriesRef.current || !chartRef.current) return;
+        
+        const rect = container.getBoundingClientRect();
+        const mouseY = e.clientY - rect.top;
+        
+        // Hit test using coordinates for better precision
+        const slY = slPrice ? seriesRef.current.priceToCoordinate(slPrice) : null;
+        const tpY = tpPrice ? seriesRef.current.priceToCoordinate(tpPrice) : null;
+        
+        const tolerance = 15; // 15 pixels hit area
+        
+        if (slY !== null && Math.abs(mouseY - slY) < tolerance) {
+          isDraggingRef.current = 'SL';
+          container.style.cursor = 'ns-resize';
+        } else if (tpY !== null && Math.abs(mouseY - tpY) < tolerance) {
+          isDraggingRef.current = 'TP';
+          container.style.cursor = 'ns-resize';
+        }
+      };
+
+      const handleMouseMove = (e: MouseEvent) => {
+        if (!isDraggingRef.current || !seriesRef.current || !onLevelChange) return;
+        
+        const rect = container.getBoundingClientRect();
+        const y = e.clientY - rect.top;
+        const newPrice = seriesRef.current.coordinateToPrice(y);
+        
+        if (newPrice) {
+          onLevelChange(isDraggingRef.current, newPrice);
+        }
+      };
+
+      const handleMouseUp = () => {
+        isDraggingRef.current = null;
+        container.style.cursor = 'crosshair';
+      };
+
+      container.addEventListener('mousedown', handleMouseDown);
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+
+      const handleResize = () => {
+        if (chartContainerRef.current && chartRef.current) {
+          chartRef.current.applyOptions({ width: chartContainerRef.current.clientWidth });
+        }
+      };
+
+      window.addEventListener('resize', handleResize);
+
+      return () => {
+        container.removeEventListener('mousedown', handleMouseDown);
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+        window.removeEventListener('resize', handleResize);
+        chart.remove();
+        chartRef.current = null;
+        seriesRef.current = null;
+      };
+    } catch (err) {
+      console.error("Chart init failed:", err);
     }
-
-    // Interaction Logic for Draggable Lines
-    const container = chartContainerRef.current;
-    
-    const handleMouseDown = (e: MouseEvent) => {
-      if (!onLevelChange || !seriesRef.current || !chartRef.current) return;
-      
-      const rect = container.getBoundingClientRect();
-      const mouseY = e.clientY - rect.top;
-      
-      // Hit test using coordinates for better precision
-      const slY = slPrice ? seriesRef.current.priceToCoordinate(slPrice) : null;
-      const tpY = tpPrice ? seriesRef.current.priceToCoordinate(tpPrice) : null;
-      
-      const tolerance = 15; // 15 pixels hit area
-      
-      if (slY !== null && Math.abs(mouseY - slY) < tolerance) {
-        isDraggingRef.current = 'SL';
-        container.style.cursor = 'ns-resize';
-      } else if (tpY !== null && Math.abs(mouseY - tpY) < tolerance) {
-        isDraggingRef.current = 'TP';
-        container.style.cursor = 'ns-resize';
-      }
-    };
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isDraggingRef.current || !seriesRef.current || !onLevelChange) return;
-      
-      const rect = container.getBoundingClientRect();
-      const y = e.clientY - rect.top;
-      const newPrice = seriesRef.current.coordinateToPrice(y);
-      
-      if (newPrice) {
-        onLevelChange(isDraggingRef.current, newPrice);
-      }
-    };
-
-    const handleMouseUp = () => {
-      isDraggingRef.current = null;
-      container.style.cursor = 'crosshair';
-    };
-
-    container.addEventListener('mousedown', handleMouseDown);
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-
-    const handleResize = () => {
-      if (chartContainerRef.current && chartRef.current) {
-        chartRef.current.applyOptions({ width: chartContainerRef.current.clientWidth });
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      container.removeEventListener('mousedown', handleMouseDown);
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-      window.removeEventListener('resize', handleResize);
-      chart.remove();
-    };
-  }, [backgroundColor, textColor, upColor, downColor]);
+  }, [backgroundColor, textColor, upColor, downColor, height]);
 
   // Update Data
   useEffect(() => {
@@ -225,13 +236,13 @@ export const TradingChart: React.FC<ChartProps> = ({
       ref={chartContainerRef} 
       style={{ 
         width: '100%', 
-        height: '480px', 
+        height: height === '100%' || height === '100vh' ? height : `${height}px`, 
         position: 'relative',
         background: backgroundColor,
-        borderRadius: '12px',
+        borderRadius: isDraggingRef.current ? '0' : '12px',
         overflow: 'hidden',
         cursor: 'crosshair',
-        border: '1px solid var(--border-subtle)'
+        border: height === '100vh' ? 'none' : '1px solid var(--border-subtle)'
       }} 
     />
   );
